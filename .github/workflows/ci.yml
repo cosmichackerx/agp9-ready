@@ -139,7 +139,7 @@ jobs:
           pr-mode: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
 
   released-action:
-    name: released action (consumer test, v0.2.0)
+    name: released action (consumer test, v0.2.1)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -148,23 +148,30 @@ jobs:
           persist-credentials: false
       - name: PR mode with the published tag (legacy fixture is old, so nothing is new)
         if: github.event_name == 'pull_request'
-        uses: cosmichackerx/agp9-ready@v0.2.0
+        uses: cosmichackerx/agp9-ready@v0.2.1
         with:
           path: tests/fixtures/legacy-app
           pr-mode: "true"
           fail-on: warning
       - name: Clean fixture passes with the published tag
-        uses: cosmichackerx/agp9-ready@v0.2.0
+        uses: cosmichackerx/agp9-ready@v0.2.1
         with:
           path: tests/fixtures/clean-app
       - name: Legacy fixture fails with the published tag
         id: bad
         continue-on-error: true
-        uses: cosmichackerx/agp9-ready@v0.2.0
+        uses: cosmichackerx/agp9-ready@v0.2.1
         with:
           path: tests/fixtures/legacy-app
       - name: It really failed
         run: test "${{ steps.bad.outcome }}" = "failure"
+      - name: Remote pre-commit hook at the published tag (clean fixture passes)
+        run: |
+          pip install pre-commit
+          work="$RUNNER_TEMP/pcr"; rm -rf "$work"; mkdir -p "$work"
+          cp -r tests/fixtures/clean-app/. "$work/"
+          cd "$work" && git init -q && git add -A && git -c user.name=ci -c user.email=ci@example.invalid commit -q -m fixture
+          pre-commit try-repo https://github.com/cosmichackerx/agp9-ready agp9-ready --ref v0.2.1 --all-files
 
   pre-commit:
     name: pre-commit hook (try-repo)
