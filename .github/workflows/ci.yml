@@ -54,6 +54,21 @@ jobs:
           agp9-ready --version
           agp9-ready --list-rules
 
+  claims:
+    name: README claims (claims-check)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: python -m pip install pytest .
+      - uses: cosmichackerx/claims-check@v0.1.0
+
   oracle:
     # Every construct in tests/oracle/run_oracle.py is built with a real Android Gradle Plugin; the build outcome must agree with what agp9-ready reports.
     name: oracle (real AGP ${{ matrix.agp }}, Gradle 9.8.0)

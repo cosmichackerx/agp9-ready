@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+* CI: README oracle case count, unit-test count and version pins are checked by [claims-check](https://github.com/cosmichackerx/claims-check) (`.claims.json`). The first run found nothing stale.
+
 ## 0.2.1 - 2026-10-03
 
 * New rule `kotlin-options`: `android { kotlinOptions { } }` fails with built-in Kotlin; oracle case against AGP 9.4.1 (and a negative case for the `kotlin { compilerOptions { } }` replacement).
