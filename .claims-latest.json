@@ -1,0 +1,5 @@
+{
+  "claims": [
+    {"id": "action and hook pins in the README equal the newest release", "file": "README.md", "regex": "(?:agp9-ready@|rev: )v([0-9.]+)", "expect": {"latest_tag": "https://github.com/cosmichackerx/agp9-ready"}}
+  ]
+}
