@@ -114,3 +114,23 @@ jobs:
       - uses: cosmichackerx/dependabot-gaps@v0.2.1
         with:
           fail-on: warning
+
+  released-action:
+    name: released action (consumer test, v0.1.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Clean fixture passes with the published tag
+        uses: cosmichackerx/agp9-ready@v0.1.0
+        with:
+          path: tests/fixtures/clean-app
+      - name: Legacy fixture fails with the published tag
+        id: bad
+        continue-on-error: true
+        uses: cosmichackerx/agp9-ready@v0.1.0
+        with:
+          path: tests/fixtures/legacy-app
+      - name: It really failed
+        run: test "${{ steps.bad.outcome }}" = "failure"
