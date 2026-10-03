@@ -129,6 +129,20 @@ steps:
       comment: "true"
 ```
 
+## pre-commit
+
+```yaml
+repos:
+  - repo: https://github.com/cosmichackerx/agp9-ready
+    rev: v0.2.1
+    hooks:
+      - id: agp9-ready        # report; fails the commit on errors
+      # - id: agp9-ready-fix  # or: apply the mechanical fixes (the commit then stops so you can review the diff)
+```
+
+The hooks scan the whole project (`pass_filenames: false`) and run only when a Gradle file, `gradle.properties`, a version catalog or a `buildSrc` / `build-logic` source changed.
+CI checks the hooks with `pre-commit try-repo` against the fixtures (clean passes, legacy fails, the fix hook rewrites it).
+
 ## PR mode: only what a pull request introduces
 
 A legacy build can have hundreds of findings. `--base REF` scans the Gradle files at the merge base of `REF` and `HEAD`, scans the working tree, and reports only the difference. Findings are matched by rule, file and source line text, not by line number, so inserting lines above old code or renaming a file does not make old findings look new.

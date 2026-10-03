@@ -1,0 +1,14 @@
+- id: agp9-ready
+  name: agp9-ready (Android Gradle Plugin 9 readiness)
+  description: Report what AGP 9 and 10 break in Gradle files, without running Gradle.
+  entry: agp9-ready
+  language: python
+  files: '(\.gradle(\.kts)?|gradle\.properties|\.versions\.toml|gradle-wrapper\.properties)$|(^|/)(buildSrc|build-logic|buildLogic)/.*\.(kt|java|groovy)$'
+  pass_filenames: false
+- id: agp9-ready-fix
+  name: agp9-ready --fix (apply the mechanical fixes)
+  description: Apply the safe automatic AGP 9 fixes, then report what is left.
+  entry: agp9-ready --fix
+  language: python
+  files: '(\.gradle(\.kts)?|gradle\.properties|\.versions\.toml|gradle-wrapper\.properties)$|(^|/)(buildSrc|build-logic|buildLogic)/.*\.(kt|java|groovy)$'
+  pass_filenames: false
