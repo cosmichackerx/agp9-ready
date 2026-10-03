@@ -47,6 +47,32 @@ android {{
 """
 
 
+BUILDSRC_GRADLE = """plugins { `kotlin-dsl` }
+repositories { google(); mavenCentral() }
+dependencies {
+    implementation("com.android.tools.build:gradle:AGP_VERSION")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.0")
+}
+"""
+
+
+def conv_app(plugin_class="Conv"):
+    """An app whose AGP comes from the buildSrc classpath (no version in the plugins block) and which applies a buildSrc plugin."""
+    return f"""plugins {{ id 'com.android.application' }}
+android {{
+    namespace = 'x.y'
+    compileSdk = 36
+    defaultConfig {{ minSdk = 24 }}
+}}
+apply plugin: {plugin_class}
+"""
+
+
+def conv_src(body, imports=""):
+    return {"buildSrc/build.gradle.kts": BUILDSRC_GRADLE,
+            "buildSrc/src/main/kotlin/Conv.kt": f"{imports}import org.gradle.api.Plugin\nimport org.gradle.api.Project\n\nclass Conv : Plugin<Project> {{\n    override fun apply(p: Project) {{\n{body}\n    }}\n}}\n"}
+
+
 # name: (rule, expectation, regex that must appear in Gradle's output (or None), app/build.gradle, extra gradle.properties lines)
 CASES = {
     "clean": (None, "pass", None, app(), ""),
@@ -61,6 +87,12 @@ CASES = {
     "set-dimension-groovy-still-works": (None, "pass", None, app(android="    flavorDimensions = ['a']\n    productFlavors { foo { setDimension 'a' } }\n"), ""),
     "register-transform": ("register-transform", "fail", None, app(tail="android.registerTransform(null)\n"), ""),
     "legacy-extension-type": ("legacy-extension-type", "fail", None, app(tail="def e = project.extensions.getByType(com.android.build.gradle.BaseExtension)\nprintln e\n"), ""),
+    "buildsrc-legacy-extension": ("legacy-extension-type", "fail", r"BaseExtension|ClassCast|does not exist", conv_app(), "",
+                                  "build.gradle", conv_src("        p.extensions.getByType(BaseExtension::class.java).compileSdkVersion(36)", "import com.android.build.gradle.BaseExtension\n")),
+    "buildsrc-kotlin-android-apply": ("kotlin-android-plugin", "fail", r"no longer required", conv_app(), "",
+                                      "build.gradle", conv_src('        p.pluginManager.apply("org.jetbrains.kotlin.android")')),
+    "buildsrc-clean": (None, "pass", None, conv_app(), "", "build.gradle",
+                       conv_src("        p.extensions.getByType(ApplicationExtension::class.java).compileSdk = 36", "import com.android.build.api.dsl.ApplicationExtension\n")),
     "wear-app": ("wear-app", "fail", None, app(tail="dependencies { wearApp 'x:wear:1.0' }\n"), ""),
     "enforced-legacy-variant-flag": ("enforced-property", "fail", r"enableLegacyVariantApi", app(), "android.enableLegacyVariantApi=true\n"),
     "legacy-variant-flag-false": ("removed-property", "warn", r"enableLegacyVariantApi", app(), "android.enableLegacyVariantApi=false\n"),
@@ -87,6 +119,9 @@ def run_case(name, spec, gradle, agp, sdk):
         open(os.path.join(d, "local.properties"), "w").write("sdk.dir=%s\n" % sdk)
         open(os.path.join(d, "gradle.properties"), "w").write("org.gradle.jvmargs=-Xmx1g\n" + props)
         open(os.path.join(d, "app", fname), "w").write(build.replace("AGP_VERSION", agp))
+        for rel, body in (spec[6] if len(spec) > 6 else {}).items():  # extra files, e.g. buildSrc
+            os.makedirs(os.path.dirname(os.path.join(d, rel)), exist_ok=True)
+            open(os.path.join(d, rel), "w").write(body.replace("AGP_VERSION", agp))
         p = subprocess.run([gradle, "help", "--warning-mode", "all", "--no-daemon", "--console=plain"], cwd=d, stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT, text=True, timeout=900)
         out = p.stdout
