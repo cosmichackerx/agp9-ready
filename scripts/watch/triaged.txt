@@ -1,0 +1,2 @@
+android.applicationVariants  # a DSL member, covered by the legacy-variant-api rule (name match, not a gradle property)
+android.txt  # the proguard-android.txt file name in prose, not a property
