@@ -140,10 +140,20 @@ Needs git history (`actions/checkout` with `fetch-depth: 0`); exit code 2 with a
 
 `action.yml` is Marketplace-ready (name, description, branding, inputs). I have **not** checked that the name is unique on the Marketplace, and publishing it there is a manual step in the release UI.
 
+## Convention plugin sources (buildSrc / build-logic)
+
+Most real `BaseExtension` and `applicationVariants` uses live in convention plugins, not in `build.gradle`. Source files (`.kt`, `.java`, `.groovy`) below a `buildSrc`, `build-logic` or `buildLogic` directory are checked for:
+
+* `com.android.build.gradle.{BaseExtension, AppExtension, LibraryExtension, TestExtension, internal.dsl.BaseAppModuleExtension}` as an import or a qualified name (`legacy-extension-type`); bare names only count when the file has `import com.android.build.gradle.*`;
+* `com.android.build.gradle.api.*Variant` types and `.applicationVariants`, `.libraryVariants`, `.testVariants`, `.unitTestVariants`, `.registerJavaGeneratingTask`, `.registerResGeneratingTask` calls (`legacy-variant-api`), and `.registerTransform(` (`register-transform`);
+* `apply("org.jetbrains.kotlin.android")` / `apply(plugin = "...kapt")` (`kotlin-android-plugin`, `kapt-plugin`); `withPlugin(...)` only reacts to a plugin and is not reported.
+
+The same severities and `android.newDsl` / `android.builtInKotlin` opt-out handling apply as in build scripts. Three oracle cases generate a real buildSrc plugin and run it on AGP 9.4.1 (the `BaseExtension` lookup and the `kotlin-android` apply fail the build; a plugin that uses `com.android.build.api.dsl.ApplicationExtension` passes). Only a text scan: no type resolution, so a class that merely shares a name is not understood.
+
 ## How it is verified
 
 `tests/oracle/run_oracle.py` generates a minimal Android app per construct, runs `gradle help --warning-mode all` with **AGP 9.4.1 on Gradle 9.8.0**, and
-checks that the build outcome (fails / warns / passes) matches the expectation **and** that agp9-ready reports the rule. 24 cases, 0 disagreements at
+checks that the build outcome (fails / warns / passes) matches the expectation **and** that agp9-ready reports the rule. 27 cases, 0 disagreements at
 the time of release (CI job *oracle*). The Gradle messages it saw, abridged:
 
 * `kotlin-android`: *"The 'org.jetbrains.kotlin.android' plugin is no longer required for Kotlin support since AGP 9.0. Solution: Remove the plugin"*
@@ -165,7 +175,7 @@ oracle case (wrapper version, the third-party plugin table, KSP versions): they 
 
 ## Limitations (read these)
 
-* Static text matching with comment/string blanking, not a Groovy/Kotlin parser. Computed plugin ids (`id(pluginName)`), dynamic versions and conventions defined in `buildSrc`/`build-logic` **Kotlin or Java sources** are not scanned; only `*.gradle`, `*.gradle.kts`, `gradle.properties`, `*.versions.toml` and the wrapper properties are.
+* Static text matching with comment/string blanking, not a Groovy/Kotlin parser. Computed plugin ids (`id(pluginName)`) and dynamic versions are not resolved. Besides `*.gradle`, `*.gradle.kts`, `gradle.properties`, `*.versions.toml` and the wrapper properties, `.kt`, `.java` and `.groovy` sources **under a directory named `buildSrc`, `build-logic` or `buildLogic`** get a small set of checks (see "Convention plugin sources"); convention code in other directories, and anything those checks do not look for (for example `project.extensions.findByName("android") as BaseExtension` through a type alias), is not scanned.
 * Version catalogs are read line by line (one entry per line); multi-line TOML tables are skipped.
 * The AGP version comes from the catalog, a literal plugin version or a `classpath` coordinate. If none is found the report says so.
 * The plugin compatibility table is a snapshot of a third-party list and will go stale.
@@ -174,7 +184,7 @@ oracle case (wrapper version, the third-party plugin table, KSP versions): they 
 
 ## Roadmap
 
-See the [issues](https://github.com/cosmichackerx/agp9-ready/issues): PR mode with a sticky comment, scanning `buildSrc` sources, a watcher for the AGP release-notes pages, a pre-commit hook.
+See the [issues](https://github.com/cosmichackerx/agp9-ready/issues): a watcher for the AGP release-notes pages, a pre-commit hook, multi-line catalog tables, `kotlinOptions` migration, AGP 10 task-access rules.
 
 ## License
 

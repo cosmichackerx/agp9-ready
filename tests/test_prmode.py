@@ -123,3 +123,11 @@ def test_unknown_base_and_not_a_repo(tmp_path, repo, capsys):
 
 def test_base_and_fix_cannot_be_combined(repo):
     assert main([str(repo), "--base", "base", "--fix"]) == 2
+
+
+def test_buildsrc_sources_take_part_in_pr_mode(repo):
+    (repo / "buildSrc" / "src" / "main" / "kotlin").mkdir(parents=True)
+    (repo / "buildSrc" / "src" / "main" / "kotlin" / "Conv.kt").write_text("import com.android.build.gradle.BaseExtension\n")
+    commit(repo)
+    f, pr = new(repo)
+    assert [(x[0], x[1]) for x in f] == [("legacy-extension-type", "buildSrc/src/main/kotlin/Conv.kt")] and pr["existing"] == 3

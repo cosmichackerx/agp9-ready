@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+* PR mode: `--base REF` reports only findings a change introduces (matched by rule, file and line text; renames followed); Action inputs `pr-mode`, `base`.
+* Sticky pull request comment (`comment: true`), updated in place; skipped for fork PRs.
+* Scan `.kt`, `.java` and `.groovy` sources under `buildSrc`, `build-logic` and `buildLogic` (legacy extension types, legacy variant API, `registerTransform`, kotlin-android/kapt applied by id); 3 new oracle cases against AGP 9.4.1.
+
 ## 0.1.0 - 2026-10-03
 
 First release.

@@ -62,7 +62,7 @@ def scan_against_base(path: str, base: str, ignore=(), disabled=(), only=(), tar
         if parts[0].startswith("R") and len(parts) == 3:
             renames[parts[2]] = parts[1]
 
-    names = [n for n in _text(top, "ls-tree", "-r", "--name-only", merge_base, "--", rel_root).splitlines() if kind_of(os.path.basename(n))]
+    names = [n for n in _text(top, "ls-tree", "-r", "--name-only", merge_base, "--", rel_root).splitlines() if kind_of(os.path.basename(n), n)]
     base_findings: list = []
     with tempfile.TemporaryDirectory(prefix="agp9-base-") as tmp:
         if names:

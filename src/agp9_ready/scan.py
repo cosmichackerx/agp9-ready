@@ -37,7 +37,11 @@ class Result:
     pr: dict | None = None  # set in PR mode (--base): {base, existing, resolved}
 
 
-def kind_of(name: str):
+CONVENTION_DIRS = {"buildSrc", "build-logic", "buildLogic"}
+SOURCE_EXT = (".kt", ".java", ".groovy")
+
+
+def kind_of(name: str, rel: str | None = None):
     if name.endswith(".gradle.kts"):
         return "kotlin"
     if name.endswith(".gradle"):
@@ -48,6 +52,10 @@ def kind_of(name: str):
         return "wrapper"
     if name.endswith(".versions.toml"):
         return "catalog"
+    if rel is not None and name.endswith(SOURCE_EXT):
+        parts = rel.split("/")[:-1]
+        if any(seg in CONVENTION_DIRS for seg in parts):
+            return "source"  # convention-plugin sources of buildSrc / build-logic
     return None
 
 
@@ -59,10 +67,10 @@ def discover(root: str, ignore: list):
     for dp, dns, fns in os.walk(root):
         dns[:] = sorted(d for d in dns if d not in SKIP_DIRS)
         for fn in sorted(fns):
-            if kind_of(fn) is None:
-                continue
             full = os.path.join(dp, fn)
             rel = os.path.relpath(full, root).replace(os.sep, "/")
+            if kind_of(fn, rel) is None:
+                continue
             if any(fnmatch.fnmatch(rel, g) or fnmatch.fnmatch(fn, g) for g in ignore):
                 continue
             yield full, rel
@@ -181,8 +189,8 @@ class Project:
 class Ctx:
     def __init__(self, rel: str, text: str, kind: str, project: Project):
         self.rel, self.text, self.kind, self.p = rel, text, kind, project
-        self.kotlin = kind == "kotlin"
-        code = kind in ("kotlin", "groovy")
+        self.kotlin = kind == "kotlin" or (kind == "source" and rel.endswith(".kt"))
+        code = kind in ("kotlin", "groovy", "source")
         self.code = blank_comments(text, self.kotlin) if code else text
         self.nostr = blank_strings(text, self.kotlin) if code else text
         self.out: list = []
@@ -426,14 +434,44 @@ def ksp(c: Ctx):
             c.add("ksp-version", off, f"KSP `{ver}` is older than 2.3.6")
 
 
-DETECTORS = [kotlin_plugins, legacy_api, removed_dsl, properties_file, wrapper, plugin_compat, ksp]
+_LEGACY_EXT = "BaseExtension|AppExtension|LibraryExtension|TestExtension|internal\\.dsl\\.BaseAppModuleExtension"
+_LEGACY_VARIANT_TYPES = "api\\.(?:BaseVariant|ApplicationVariant|LibraryVariant|TestVariant|UnitTestVariant)"
+_SRC_KOTLIN_APPLY = r"""\bapply\s*\(\s*(?:plugin\s*=\s*)?["']%s["']"""
+_SRC_VARIANT_CALL = re.compile(r"\.\s*(applicationVariants|libraryVariants|testVariants|unitTestVariants|registerJavaGeneratingTask|registerResGeneratingTask)\b")
+
+
+def convention_sources(c: Ctx):
+    """buildSrc / build-logic sources (.kt, .java, .groovy): conservative checks on imports, qualified names and `apply("plugin.id")`."""
+    if c.kind != "source":
+        return
+    sev = "warning" if (c.p.new_dsl_off and c.p.target < 10) else "error"
+    star = re.search(r"\bimport\s+com\.android\.build\.gradle\.\*", c.code) is not None
+    for m in re.finditer(r"\bcom\.android\.build\.gradle\.(?:%s)\b" % _LEGACY_EXT, c.code):
+        c.add("legacy-extension-type", m.start(), None, None, sev)
+    if star:
+        for m in re.finditer(r"(?<![\w.])(?:BaseExtension|AppExtension|LibraryExtension|TestExtension)\b", c.nostr):
+            c.add("legacy-extension-type", m.start(), None, None, sev)
+    for m in re.finditer(r"\bcom\.android\.build\.gradle\.%s\b" % _LEGACY_VARIANT_TYPES, c.code):
+        c.add("legacy-variant-api", m.start(), "the legacy variant API types (`com.android.build.gradle.api.*Variant`) are removed with the new DSL (AGP 9 default) and in AGP 10", None, sev)
+    for m in _SRC_VARIANT_CALL.finditer(c.nostr):
+        c.add("legacy-variant-api", m.start(1), f"`{m.group(1)}` belongs to the legacy variant API, removed with the new DSL (AGP 9 default) and in AGP 10", None, sev)
+    for m in re.finditer(r"\.\s*registerTransform\s*\(", c.nostr):
+        c.add("register-transform", m.start())
+    opt = c.p.builtin_off
+    ksev = "warning" if (opt and c.p.target < 10) else "error"
+    for rule, pid in (("kotlin-android-plugin", "org\\.jetbrains\\.kotlin\\.android"), ("kapt-plugin", "org\\.jetbrains\\.kotlin\\.kapt")):
+        for m in re.finditer(_SRC_KOTLIN_APPLY % pid, c.code):
+            c.add(rule, m.start(), None, None, ksev)
+
+
+DETECTORS = [kotlin_plugins, legacy_api, removed_dsl, properties_file, wrapper, plugin_compat, ksp, convention_sources]
 
 
 def scan_text(rel: str, text: str, kind: str, project: Project | None = None, disabled=frozenset(), only=frozenset()):
     c = Ctx(rel, text, kind, project or Project())
     for d in DETECTORS:
         d(c)
-    ign = ignore_directives(text, c.kotlin) if kind in ("kotlin", "groovy") else {}
+    ign = ignore_directives(text, c.kotlin) if kind in ("kotlin", "groovy", "source") else {}
     res = []
     for f in c.out:
         if f.rule in disabled or (only and f.rule not in only):
@@ -462,7 +500,7 @@ def load_project(root: str, files: list, target: int) -> Project:
     texts = {}
     base = os.path.abspath(root) if os.path.isdir(root) else os.path.dirname(os.path.abspath(root))
     for full, rel in files:
-        kind = kind_of(os.path.basename(full))
+        kind = kind_of(os.path.basename(full), rel)
         if kind in ("kotlin", "groovy"):
             texts[rel] = blank_comments(_read(full), kind == "kotlin")
     # gradle.properties and catalog from the scan root, even when only one build file was named
@@ -473,7 +511,7 @@ def load_project(root: str, files: list, target: int) -> Project:
         if os.path.isfile(cand):
             p.catalog = parse_catalog(_read(cand))
     for full, rel in files:  # a catalog or properties file inside the scan wins when the root has none
-        kind = kind_of(os.path.basename(full))
+        kind = kind_of(os.path.basename(full), rel)
         if kind == "catalog" and not p.catalog:
             p.catalog = parse_catalog(_read(full))
     p.detect_agp(texts)
@@ -486,7 +524,7 @@ def scan(root: str, ignore=(), disabled=(), only=(), target: int = 9) -> Result:
     r = Result(agp=p.agp, target=target)
     for full, rel in files:
         r.files_scanned += 1
-        r.findings += scan_text(rel, _read(full), kind_of(os.path.basename(full)), p, frozenset(disabled), frozenset(only))
+        r.findings += scan_text(rel, _read(full), kind_of(os.path.basename(full), rel), p, frozenset(disabled), frozenset(only))
     return r
 
 
@@ -497,7 +535,7 @@ def apply_fixes(root: str, ignore=(), disabled=(), only=(), target: int = 9) -> 
     p = load_project(root, flist, target)
     for full, rel in flist:
         text = _read(full)
-        fs = [f for f in scan_text(rel, text, kind_of(os.path.basename(full)), p, frozenset(disabled), frozenset(only)) if f.edit]
+        fs = [f for f in scan_text(rel, text, kind_of(os.path.basename(full), rel), p, frozenset(disabled), frozenset(only)) if f.edit]
         if not fs:
             continue
         last, n = None, 0
