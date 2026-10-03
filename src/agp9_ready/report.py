@@ -22,6 +22,10 @@ def summary_line(r: Result) -> str:
     c = counts(r)
     fx = sum(1 for f in r.findings if f.edit)
     agp = f" AGP detected: {r.agp}." if r.agp else " AGP version not found."
+    if r.pr:
+        p = r.pr
+        return (f"{r.files_scanned} file(s) scanned for AGP {r.target}.{agp} {c['error']} error, {c['warning']} warning, {c['note']} note introduced since {p['base']}; "
+                f"{fx} auto-fixable with --fix. Not shown: {p['existing']} that were already there; {p['resolved']} resolved.")
     return (f"{r.files_scanned} file(s) scanned for AGP {r.target}.{agp} "
             f"{c['error']} error, {c['warning']} warning, {c['note']} note; {fx} auto-fixable with --fix.")
 
@@ -29,7 +33,7 @@ def summary_line(r: Result) -> str:
 def render_text(r: Result) -> str:
     out: list = []
     if not r.findings:
-        out.append(f"No AGP {r.target} findings.")
+        out.append(f"No new AGP {r.target} findings." if r.pr else f"No AGP {r.target} findings.")
     last = None
     for f in sorted(r.findings, key=lambda f: (f.file, f.line)):
         if f.file != last:
@@ -49,7 +53,7 @@ def render_markdown(r: Result) -> str:
         for f in sorted(r.findings, key=lambda f: (ORDER[f.severity], f.file, f.line)):
             out.append(f"| {f.severity} | [`{f.rule}`]({f.url}) | `{f.file}:{f.line}` | {f.message.replace('|', chr(92) + '|')} |")
     else:
-        out.append("No findings.")
+        out.append("No new findings." if r.pr else "No findings.")
     return "\n".join(out) + "\n"
 
 
@@ -57,6 +61,7 @@ def render_json(r: Result) -> str:
     return json.dumps({
         "tool": "agp9-ready", "version": __version__, "agpTarget": r.target, "agpDetected": r.agp,
         "filesScanned": r.files_scanned, "summary": counts(r),
+        **({"pullRequest": r.pr} if r.pr else {}),
         "findings": [{"rule": f.rule, "severity": f.severity, "file": f.file, "line": f.line, "column": f.col,
                       "message": f.message, "snippet": f.snippet, "fixable": bool(f.edit), "docs": f.url} for f in r.findings],
     }, indent=2) + "\n"

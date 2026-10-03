@@ -34,6 +34,7 @@ class Result:
     files_scanned: int = 0
     agp: str | None = None
     target: int = 9
+    pr: dict | None = None  # set in PR mode (--base): {base, existing, resolved}
 
 
 def kind_of(name: str):

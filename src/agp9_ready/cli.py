@@ -7,6 +7,7 @@ import sys
 from . import __version__
 from .report import RENDERERS, meets_threshold
 from .rules import RULES
+from .diffmode import GitError, scan_against_base
 from .scan import apply_fixes, scan
 
 
@@ -20,6 +21,7 @@ def main(argv=None) -> int:
     p.add_argument("--ignore", action="append", default=[], metavar="GLOB", help="path glob to skip (repeatable)")
     p.add_argument("--disable", action="append", default=[], metavar="RULE", help="turn a rule off (repeatable)")
     p.add_argument("--only", action="append", default=[], metavar="RULE", help="run only this rule (repeatable)")
+    p.add_argument("--base", metavar="REF", help="PR mode: report only findings that are new compared to this git revision (merge base with HEAD)")
     p.add_argument("--fix", action="store_true", help="rewrite files in place for the rules that have a safe automatic fix")
     p.add_argument("--list-rules", action="store_true")
     p.add_argument("--version", action="version", version=f"agp9-ready {__version__}")
@@ -32,10 +34,20 @@ def main(argv=None) -> int:
         if rid not in RULES:
             print(f"unknown rule: {rid} (see --list-rules)", file=sys.stderr)
             return 2
+    if a.base and a.fix:
+        print("--base and --fix cannot be combined", file=sys.stderr)
+        return 2
     if a.fix:
         files, edits = apply_fixes(a.path, a.ignore, a.disable, a.only, a.agp_target)
         print(f"fixed {edits} place(s) in {files} file(s)", file=sys.stderr)
-    r = scan(a.path, a.ignore, a.disable, a.only, a.agp_target)
+    if a.base:
+        try:
+            r = scan_against_base(a.path, a.base, a.ignore, a.disable, a.only, a.agp_target)
+        except GitError as e:
+            print(f"agp9-ready: {e}", file=sys.stderr)
+            return 2
+    else:
+        r = scan(a.path, a.ignore, a.disable, a.only, a.agp_target)
     text = RENDERERS[a.format](r)
     if a.output:
         with open(a.output, "w", encoding="utf-8", newline="") as fh:
