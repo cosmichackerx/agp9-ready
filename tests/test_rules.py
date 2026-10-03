@@ -195,3 +195,40 @@ def test_every_rule_has_a_url_with_a_fragment_or_page():
     from agp9_ready.rules import RULES
     for r in RULES.values():
         assert r.url.startswith("https://") and r.severity in ("error", "warning", "note")
+
+
+def test_kotlin_options_in_android_block():
+    assert ("kotlin-options", "error") in rules("android {\n    kotlinOptions {\n        jvmTarget = \"17\"\n    }\n}\n")
+    assert ("kotlin-options", "error") in rules("android { kotlinOptions { jvmTarget = '17' } }", "groovy", rel="app/build.gradle")
+    assert ("kotlin-options", "error") in rules("android.kotlinOptions { jvmTarget = '17' }", "groovy", rel="app/build.gradle")
+    # not in an android block, or already the new DSL
+    assert rules("tasks.withType<KotlinCompile> { kotlinOptions { jvmTarget = \"17\" } }") == []
+    assert rules("kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }") == []
+    assert rules("// android { kotlinOptions { } }\n") == []
+
+
+def test_kotlin_options_is_a_warning_with_the_builtin_kotlin_opt_out():
+    p = Project()
+    p.props = {"android.builtInKotlin": ("false", 0, 0, 0)}
+    assert ("kotlin-options", "warning") in rules("android { kotlinOptions { } }", project=p)
+    p.target = 10
+    assert ("kotlin-options", "error") in rules("android { kotlinOptions { } }", project=p)
+
+
+def test_catalog_table_sections_and_dotted_keys():
+    cat = parse_catalog(
+        '[versions]\nkotlinv = "2.3.0"\n\n[plugins.kotlin-android]\nid = "org.jetbrains.kotlin.android"\nversion.ref = "kotlinv"\n\n'
+        '[plugins]\nkapt.id = "org.jetbrains.kotlin.kapt"\nkapt.version = "2.3.0"\nagp = { id = "com.android.application", version = "9.0.0" }\n\n'
+        '[libraries.core]\nmodule = "androidx.core:core-ktx"\nversion = "1.15.0"\n')
+    assert cat["plugins"]["kotlin-android"]["id"] == "org.jetbrains.kotlin.android" and cat["plugins"]["kotlin-android"]["version.ref"] == "kotlinv"
+    assert cat["plugins"]["kapt"]["id"] == "org.jetbrains.kotlin.kapt" and cat["plugins"]["kapt"]["version"] == "2.3.0"
+    assert cat["plugins"]["agp"]["id"] == "com.android.application"
+    assert cat["libraries"]["core"]["module"] == "androidx.core:core-ktx"
+
+
+def test_alias_of_a_table_form_catalog_plugin_is_found(tmp_path):
+    write(str(tmp_path), {
+        "gradle/libs.versions.toml": '[plugins.kotlin-android]\nid = "org.jetbrains.kotlin.android"\nversion = "2.3.0"\n[plugins.kapt]\nid = "org.jetbrains.kotlin.kapt"\nversion = "2.3.0"\n',
+        "app/build.gradle.kts": "plugins {\n    alias(libs.plugins.kotlin.android)\n    alias(libs.plugins.kapt)\n}\n"})
+    got = sorted(f.rule for f in scan(str(tmp_path)).findings)
+    assert got == ["kapt-plugin", "kotlin-android-plugin"], got

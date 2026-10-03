@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 - 2026-10-03
+
+* New rule `kotlin-options`: `android { kotlinOptions { } }` fails with built-in Kotlin; oracle case against AGP 9.4.1 (and a negative case for the `kotlin { compilerOptions { } }` replacement).
+* Version catalogs: table sections (`[plugins.kotlin-android]` + `id = ...`) and dotted keys (`kapt.id = ...`, `kapt.version.ref = ...`) are read, so `alias(libs.plugins...)` to such entries is resolved; 3 oracle cases.
+* pre-commit hooks `agp9-ready` and `agp9-ready-fix` (`.pre-commit-hooks.yaml`), checked in CI with `pre-commit try-repo`.
+* `action.yml` description shortened to the Marketplace limit of 125 characters, with a CI check (name, description length, branding).
+
 ## 0.2.0 - 2026-10-03
 
 * Weekly docs watcher (`scripts/watch/watch_agp_docs.py`, `.github/workflows/agp-watch.yml`): new AGP release-notes pages and sections, roadmap title changes, stale rule anchors, uncovered documented properties. One deduplicated issue.

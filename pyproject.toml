@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agp9-ready"
-version = "0.2.0"
+version = "0.2.1"
 description = "Find what Android Gradle Plugin 9 (and 10) breaks in your Gradle files without running Gradle: kotlin-android and kapt plugins, legacy variant API, newDsl/builtInKotlin opt-outs, removed properties. Auto-fix, SARIF and GitHub Action."
 readme = "README.md"
 requires-python = ">=3.9"
