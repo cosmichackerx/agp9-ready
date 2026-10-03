@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-10-03
 
 * Weekly docs watcher (`scripts/watch/watch_agp_docs.py`, `.github/workflows/agp-watch.yml`): new AGP release-notes pages and sections, roadmap title changes, stale rule anchors, uncovered documented properties. One deduplicated issue.
 * PR mode: `--base REF` reports only findings a change introduces (matched by rule, file and line text; renames followed); Action inputs `pr-mode`, `base`.

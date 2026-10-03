@@ -107,7 +107,7 @@ Not fixed on purpose: kapt (needs a KSP decision), the variant API (needs a desi
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: cosmichackerx/agp9-ready@v0.1.0
+- uses: cosmichackerx/agp9-ready@v0.2.0
   with:
     fail-on: error          # error | warning | never
     agp-target: "9"         # "10" makes the opt-out flags errors
@@ -121,7 +121,7 @@ permissions: { contents: read, pull-requests: write }
 steps:
   - uses: actions/checkout@v7
     with: { fetch-depth: 0 }
-  - uses: cosmichackerx/agp9-ready@main   # use a release tag once it contains PR mode
+  - uses: cosmichackerx/agp9-ready@v0.2.0
     with:
       pr-mode: "true"      # base = the pull request base commit; or pass `base:`
       comment: "true"
