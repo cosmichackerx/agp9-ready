@@ -9,6 +9,8 @@ are reported to need an opt-out. It can **fix the mechanical cases** (`--fix`), 
 **GitHub Action**.
 
 [![CI](https://github.com/cosmichackerx/agp9-ready/actions/workflows/ci.yml/badge.svg)](https://github.com/cosmichackerx/agp9-ready/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/cosmichackerx/agp9-ready?sort=semver)](https://github.com/cosmichackerx/agp9-ready/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Why a static scanner? The AGP 9 upgrade assistant in Android Studio edits your project, but it is an IDE feature; it cannot run in CI and it
 does not tell a team lead how big the migration is across 40 modules. Gradle itself only complains about the code paths a build executes, and
