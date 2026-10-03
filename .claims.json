@@ -1,0 +1,8 @@
+{
+  "claims": [
+    {"id": "oracle cases (table)", "file": "README.md", "regex": "\\| (\\d+) cases in `tests/oracle/run_oracle.py`", "expect": {"command": "python -c \"import sys; sys.path.insert(0, 'tests/oracle'); import run_oracle as r; print(len(r.CASES))\"", "regex": "^(\\d+)$"}},
+    {"id": "oracle cases (prose)", "file": "README.md", "regex": "(\\d+) cases, 0 disagreements", "expect": {"command": "python -c \"import sys; sys.path.insert(0, 'tests/oracle'); import run_oracle as r; print(len(r.CASES))\"", "regex": "^(\\d+)$"}},
+    {"id": "unit tests", "file": "README.md", "regex": "\\| (\\d+) tests \\| green", "expect": {"command": "python -m pytest --collect-only -q", "regex": "^(\\d+) tests? collected"}},
+    {"id": "action and hook pins in the README", "file": "README.md", "regex": "(?:agp9-ready@|rev: )v([0-9.]+)", "expect": {"file": "pyproject.toml", "regex": "^version = \"([0-9.]+)\""}}
+  ]
+}
