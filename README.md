@@ -114,6 +114,30 @@ Not fixed on purpose: kapt (needs a KSP decision), the variant API (needs a desi
     sarif-file: agp9.sarif  # optional; upload with github/codeql-action/upload-sarif
 ```
 
+Pull requests only, reporting what the PR introduces and keeping one comment up to date (needs `fetch-depth: 0` and `pull-requests: write`; the comment is skipped for fork PRs, whose token is read-only, and a missing permission never fails the job):
+
+```yaml
+permissions: { contents: read, pull-requests: write }
+steps:
+  - uses: actions/checkout@v7
+    with: { fetch-depth: 0 }
+  - uses: cosmichackerx/agp9-ready@main   # use a release tag once it contains PR mode
+    with:
+      pr-mode: "true"      # base = the pull request base commit; or pass `base:`
+      comment: "true"
+```
+
+## PR mode: only what a pull request introduces
+
+A legacy build can have hundreds of findings. `--base REF` scans the Gradle files at the merge base of `REF` and `HEAD`, scans the working tree, and reports only the difference. Findings are matched by rule, file and source line text, not by line number, so inserting lines above old code or renaming a file does not make old findings look new.
+
+```
+agp9-ready . --base origin/main
+# 3 file(s) scanned for AGP 9. AGP detected: 9.0.0. 0 error, 1 warning, 0 note introduced since origin/main; 0 auto-fixable with --fix. Not shown: 3 that were already there; 0 resolved.
+```
+
+Needs git history (`actions/checkout` with `fetch-depth: 0`); exit code 2 with a hint if the base is missing. Cannot be combined with `--fix`.
+
 `action.yml` is Marketplace-ready (name, description, branding, inputs). I have **not** checked that the name is unique on the Marketplace, and publishing it there is a manual step in the release UI.
 
 ## How it is verified

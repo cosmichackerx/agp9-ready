@@ -23,6 +23,18 @@ inputs:
   summary:
     description: "Append a Markdown report to the job summary (true or false)."
     default: "true"
+  pr-mode:
+    description: "true: on pull requests report only findings the pull request introduces (git history needed: actions/checkout with fetch-depth: 0). Ignored outside pull requests unless `base` is set."
+    default: "false"
+  base:
+    description: "Git revision to compare with in PR mode. Defaults to the pull request base SHA."
+    default: ""
+  comment:
+    description: "Post the Markdown report as one sticky pull request comment, updated in place on every run (true or false). Needs pull-requests: write; skipped for forks."
+    default: "false"
+  github-token:
+    description: "Token used for the sticky comment."
+    default: ${{ github.token }}
   sarif-file:
     description: "Also write a SARIF 2.1.0 report here (upload it with github/codeql-action/upload-sarif)."
     default: ""
@@ -40,6 +52,10 @@ runs:
         INPUT_IGNORE: ${{ inputs.ignore }}
         INPUT_SUMMARY: ${{ inputs.summary }}
         INPUT_SARIF: ${{ inputs.sarif-file }}
+        INPUT_PR_MODE: ${{ inputs.pr-mode }}
+        INPUT_BASE: ${{ inputs.base || github.event.pull_request.base.sha }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         if command -v python3 > /dev/null 2>&1 && python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"; then py=python3; else py=python; fi
         export PYTHONPATH="$ACTION_DIR/src"
@@ -48,6 +64,12 @@ runs:
         for r in "${rules[@]}"; do common+=(--disable "$r"); done
         read -r -a globs <<< "$INPUT_IGNORE"
         for g in "${globs[@]}"; do common+=(--ignore "$g"); done
+        if { [ "$INPUT_PR_MODE" = "true" ] && [ -n "$INPUT_BASE" ]; }; then common+=(--base "$INPUT_BASE"); fi
+        if [ "$INPUT_COMMENT" = "true" ]; then
+          report="${RUNNER_TEMP:-/tmp}/agp9-ready-comment.md"
+          "$py" -m agp9_ready "${common[@]}" --format markdown --fail-on never > "$report" || true
+          "$py" -m agp9_ready.comment "$report"
+        fi
         if [ -n "$INPUT_SARIF" ]; then
           "$py" -m agp9_ready "${common[@]}" --format sarif --output "$INPUT_SARIF" --fail-on never
         fi

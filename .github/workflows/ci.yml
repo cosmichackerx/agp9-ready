@@ -114,6 +114,7 @@ jobs:
       - uses: cosmichackerx/dependabot-gaps@v0.2.1
         with:
           fail-on: warning
+          pr-mode: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
 
   released-action:
     name: released action (consumer test, v0.1.0)
@@ -134,3 +135,39 @@ jobs:
           path: tests/fixtures/legacy-app
       - name: It really failed
         run: test "${{ steps.bad.outcome }}" = "failure"
+
+  comment-selftest:
+    name: PR mode and sticky comment (same-repo pull requests)
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: First run creates the comment
+        uses: ./
+        with:
+          path: tests/fixtures/legacy-app
+          pr-mode: "true"
+          comment: "true"
+          fail-on: never
+      - name: Second run updates the same comment
+        uses: ./
+        with:
+          path: tests/fixtures/legacy-app
+          pr-mode: "true"
+          comment: "true"
+          fail-on: never
+      - name: Exactly one sticky comment exists, and it is a PR mode report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url="repos/$GITHUB_REPOSITORY/issues/${{ github.event.pull_request.number }}/comments"
+          n="$(gh api "$url" --paginate --jq '[.[] | select(.body | startswith("<!-- agp9-ready:sticky -->"))] | length' | awk '{s+=$1} END{print s+0}')"
+          m="$(gh api "$url" --paginate --jq '[.[] | select((.body | startswith("<!-- agp9-ready:sticky -->")) and (.body | contains("introduced since")))] | length' | awk '{s+=$1} END{print s+0}')"
+          echo "sticky comments: $n, PR-mode ones: $m"
+          test "$n" = "1" && test "$m" = "1"
