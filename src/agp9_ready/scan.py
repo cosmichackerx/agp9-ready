@@ -91,19 +91,53 @@ def parse_properties(text: str) -> dict:
     return out
 
 
+_ATTRS = ("id", "module", "group", "name", "version", "version.ref", "version.strictly", "version.require", "version.prefer")
+
+
+def _strval(rest: str):
+    q = re.match(r"""["']([^"']*)["']\s*(?:#.*)?$""", rest)
+    return q.group(1) if q else None
+
+
 def parse_catalog(text: str) -> dict:
-    """Minimal TOML reader for version catalogs: {section: {key: {attr: value, '_off': offset}}}; one-line entries only."""
+    """Minimal TOML reader for version catalogs: {section: {key: {attr: value, '_off': offset}}}.
+
+    Understands one-line inline tables (`x = { id = "a", version.ref = "b" }`), plain strings, table sections
+    (`[plugins.x]` followed by `id = ...` lines) and dotted keys (`x.id = "a"`, `x.version.ref = "b"`).
+    Multi-line inline tables and arrays are not read.
+    """
     out, sec, off = {}, None, 0
+    cur = None  # entry being filled by a [section.key] table
     for ln in text.split("\n"):
         s = ln.strip()
-        m = re.match(r"\[([\w.-]+)\]$", s)
+        m = re.match(r"\[([\w.-]+)\]\s*(?:#.*)?$", s)
         if m:
-            sec = m.group(1)
-            out.setdefault(sec, {})
+            name = m.group(1)
+            head, _, rest = name.partition(".")
+            if rest and head in ("versions", "libraries", "plugins", "bundles"):
+                sec = head
+                cur = {"_off": off + ln.index(rest)}
+                out.setdefault(sec, {})[rest] = cur
+            else:
+                sec, cur = name, None
+                out.setdefault(sec, {})
         elif sec and s and not s.startswith("#"):
             m = re.match(r"""([\w.-]+)\s*=\s*(.*)$""", s)
             if m:
                 key, rest = m.group(1), m.group(2)
+                if cur is not None:  # inside a [section.key] table
+                    v = _strval(rest)
+                    if key in _ATTRS and v is not None:
+                        cur[key] = v
+                    off += len(ln) + 1
+                    continue
+                dotted = next((a for a in sorted(_ATTRS, key=len, reverse=True) if key.endswith("." + a) and len(key) > len(a) + 1), None)
+                if dotted and sec in ("libraries", "plugins") and _strval(rest) is not None:
+                    base = key[:-len(dotted) - 1]
+                    ent = out[sec].setdefault(base, {"_off": off + ln.index(key)})
+                    ent[dotted] = _strval(rest)
+                    off += len(ln) + 1
+                    continue
                 ent = {"_off": off + ln.index(key)}
                 q = re.match(r"""["']([^"']*)["']""", rest)
                 if q:
@@ -464,7 +498,22 @@ def convention_sources(c: Ctx):
             c.add(rule, m.start(), None, None, ksev)
 
 
-DETECTORS = [kotlin_plugins, legacy_api, removed_dsl, properties_file, wrapper, plugin_compat, ksp, convention_sources]
+def kotlin_options(c: Ctx):
+    """`android { kotlinOptions { } }` does not exist with built-in Kotlin (AGP 9 default)."""
+    if c.kind not in ("kotlin", "groovy"):
+        return
+    sev = "warning" if (c.p.builtin_off and c.p.target < 10) else "error"
+    seen = set()
+    for a, b in block_spans(c.nostr, "android"):
+        for m in re.finditer(r"(?<![\w.])kotlinOptions\b", c.nostr[a:b]):
+            seen.add(a + m.start())
+    for m in re.finditer(r"\bandroid\s*\.\s*kotlinOptions\b", c.nostr):
+        seen.add(m.end() - len("kotlinOptions"))
+    for off in sorted(seen):
+        c.add("kotlin-options", off, None, None, sev)
+
+
+DETECTORS = [kotlin_plugins, legacy_api, removed_dsl, kotlin_options, properties_file, wrapper, plugin_compat, ksp, convention_sources]
 
 
 def scan_text(rel: str, text: str, kind: str, project: Project | None = None, disabled=frozenset(), only=frozenset()):

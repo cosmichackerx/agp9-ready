@@ -65,7 +65,7 @@ gradle/libs.versions.toml
 3 file(s) scanned for AGP 9. AGP detected: 8.13.2. 4 error, 6 warning, 1 note; 3 auto-fixable with --fix.
 ```
 
-## Rules (17)
+## Rules (18)
 
 `agp9-ready --list-rules` prints them. **oracle** = reproduced against a real AGP 9.4.1 build in CI; **docs** = taken from the Android Developers
 pages or a third-party compatibility table only.
@@ -76,6 +76,7 @@ pages or a third-party compatibility table only.
 | `kapt-plugin` | error¹ | oracle | `org.jetbrains.kotlin.kapt`, `kotlin-kapt`, `kotlin("kapt")` |
 | `legacy-variant-api` | error² | oracle | `applicationVariants`, `libraryVariants`, `testVariants`, `unitTestVariants`, `variantFilter`, `registerJavaGeneratingTask`, `registerResGeneratingTask` |
 | `legacy-extension-type` | error² | oracle | `BaseExtension`, `AppExtension`, `BaseAppModuleExtension`, `import com.android.build.gradle.LibraryExtension` … |
+| `kotlin-options` | error¹ | oracle | `android { kotlinOptions { } }` ("Could not find method kotlinOptions()" with built-in Kotlin); a warning while `android.builtInKotlin=false` keeps the old DSL working (the oracle shows it builds silently there) |
 | `removed-dsl` | warning | oracle (dexOptions, sdkDirectory), docs (the rest) | `dexOptions`, `deviceProvider`, `testServer`, `generatePureSplits`, `jni` source sets, `android.sdkDirectory/ndkDirectory/bootClasspath/adbExecutable` |
 | `density-splits` | error | oracle | `splits { density { … } }` |
 | `wear-app` | error | oracle | `wearApp` configuration, `wearAppConfigurationName` |
