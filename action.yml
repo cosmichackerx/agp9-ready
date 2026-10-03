@@ -1,5 +1,5 @@
 name: agp9-ready
-description: "Find what Android Gradle Plugin 9 and 10 break in your Gradle files without running Gradle: kotlin-android and kapt plugins, legacy variant API, newDsl / builtInKotlin opt-outs, removed properties."
+description: "Find what Android Gradle Plugin 9 and 10 break in your Gradle files, without running Gradle."
 author: cosmichackerx
 branding:
   icon: smartphone
