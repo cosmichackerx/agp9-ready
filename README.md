@@ -17,6 +17,24 @@ does not tell a team lead how big the migration is across 40 modules. Gradle its
 the first failure hides the rest (`kotlin-android` aborts the build before you ever see the variant API errors). This reads the files and lists
 everything at once, with the Android Developers page each finding comes from.
 
+## At a glance
+
+|  | Lite (try it in a minute) | Full (keep it in CI) |
+|---|---|---|
+| How | `pipx install git+https://github.com/cosmichackerx/agp9-ready` then `agp9-ready .` (read-only; `--fix` is opt-in) | the [GitHub Action](#github-action), the [pre-commit](#pre-commit) hook, [PR mode](#pr-mode-only-what-a-pull-request-introduces) and the weekly [docs watch](#docs-watch-keeps-the-rule-table-honest) |
+
+### Validation / results
+
+Every number below is from this repository's own tests or scripts (see the linked sections). "Not proven" is as important as "Result".
+
+| What is claimed | Checked against | Size | Result | Not proven |
+|---|---|---|---|---|
+| A rule's severity matches what AGP does | Real AGP 9.4.1 on Gradle 9.8.0: a generated minimal Android app per construct (CI job *oracle*) | 32 cases in `tests/oracle/run_oracle.py`, including generated `buildSrc` plugins | 0 disagreements required for CI to pass; main is green | One AGP version. Rules marked **docs** (wrapper version, third-party plugin table, KSP versions) have no oracle case |
+| Rule logic and `--fix` | Unit tests (Linux, Windows, macOS; Python 3.9, 3.11, 3.13) | 60 tests | green | Unit tests share the author's reading of the rules |
+| It finds what breaks real projects | - | none | **Not measured**: there is no real-repository precision or recall study for this tool yet | Everything about real-world accuracy |
+
+**Releases:** 3 releases, v0.1.0 to v0.2.1, all published on 2026-10-03 (days old; no cadence to show yet). See [CHANGELOG.md](CHANGELOG.md) and the [Releases page](https://github.com/cosmichackerx/agp9-ready/releases); the weekly docs watch opens an issue when the AGP release notes change.
+
 ## Install and run
 
 ```
@@ -184,8 +202,7 @@ pages do not mark which items affect build files. The first live run (2026-10-03
 ## How it is verified
 
 `tests/oracle/run_oracle.py` generates a minimal Android app per construct, runs `gradle help --warning-mode all` with **AGP 9.4.1 on Gradle 9.8.0**, and
-checks that the build outcome (fails / warns / passes) matches the expectation **and** that agp9-ready reports the rule. 27 cases, 0 disagreements at
-the time of release (CI job *oracle*). The Gradle messages it saw, abridged:
+checks that the build outcome (fails / warns / passes) matches the expectation **and** that agp9-ready reports the rule. 32 cases, 0 disagreements (the CI job *oracle* must pass). The Gradle messages it saw, abridged:
 
 * `kotlin-android`: *"The 'org.jetbrains.kotlin.android' plugin is no longer required for Kotlin support since AGP 9.0. Solution: Remove the plugin"*
 * `applicationVariants`: *"Could not get unknown property 'applicationVariants' for object of type com.android.build.gradle.internal.dsl…"*; `variantFilter`, `dexOptions`, `registerTransform`, `density`: *"Could not find method …"*
