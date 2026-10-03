@@ -1,0 +1,69 @@
+name: AGP docs watch
+
+# Diffs the AGP roadmap and release notes against the rule table (scripts/watch/watch_agp_docs.py)
+# and opens one issue when a new release-notes page or section appears, a roadmap title (date) changes,
+# a rule anchor disappears, or a documented Gradle property is not covered by any rule.
+on:
+  schedule:
+    - cron: "43 5 * * 1"   # Mondays 05:17 UTC
+  workflow_dispatch:
+    inputs:
+      self_test:
+        description: "Ignore scripts/watch/known_sections.txt and triaged.txt so the issue path is exercised (opens one real issue)"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - "scripts/watch/**"
+      - ".github/workflows/agp-watch.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Diff the AGP docs against the rule table
+        id: diff
+        env:
+          SELF_TEST: ${{ inputs.self_test }}
+        run: |
+          set +e
+          extra=""
+          [ "$SELF_TEST" = "true" ] && extra="--known /dev/null --triaged /dev/null"
+          python scripts/watch/watch_agp_docs.py $extra --out "$RUNNER_TEMP/watch.json"
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          [ "$rc" = 0 ] || [ "$rc" = 3 ] || exit "$rc"
+      - name: Open an issue (scheduled and manual runs only)
+        if: steps.diff.outputs.rc == '3' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python - <<'PY' > "$RUNNER_TEMP/issue.env"
+          import json, os
+          r = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "watch.json")))
+          open(os.path.join(os.environ["RUNNER_TEMP"], "issue.md"), "w").write(r["body"])
+          print("TITLE_KEY=" + r["title"].rsplit("[", 1)[1].rstrip("]"))
+          print("TITLE=" + r["title"])
+          PY
+          TITLE_KEY=$(grep '^TITLE_KEY=' "$RUNNER_TEMP/issue.env" | cut -d= -f2-)
+          TITLE=$(grep '^TITLE=' "$RUNNER_TEMP/issue.env" | cut -d= -f2-)
+          gh label create agp-watch --color 0E8A16 --description "Opened by the AGP docs watch" 2>/dev/null || true
+          existing=$(gh issue list --label agp-watch --state all --search "\"[$TITLE_KEY]\" in:title" --json number --jq 'length')
+          if [ "$existing" != 0 ]; then
+            echo "An issue for [$TITLE_KEY] already exists; not opening another."
+          else
+            gh issue create --title "$TITLE" --label agp-watch --body-file "$RUNNER_TEMP/issue.md"
+          fi

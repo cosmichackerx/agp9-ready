@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+* Weekly docs watcher (`scripts/watch/watch_agp_docs.py`, `.github/workflows/agp-watch.yml`): new AGP release-notes pages and sections, roadmap title changes, stale rule anchors, uncovered documented properties. One deduplicated issue.
 * PR mode: `--base REF` reports only findings a change introduces (matched by rule, file and line text; renames followed); Action inputs `pr-mode`, `base`.
 * Sticky pull request comment (`comment: true`), updated in place; skipped for fork PRs.
 * Scan `.kt`, `.java` and `.groovy` sources under `buildSrc`, `build-logic` and `buildLogic` (legacy extension types, legacy variant API, `registerTransform`, kotlin-android/kapt applied by id); 3 new oracle cases against AGP 9.4.1.

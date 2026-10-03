@@ -150,6 +150,20 @@ Most real `BaseExtension` and `applicationVariants` uses live in convention plug
 
 The same severities and `android.newDsl` / `android.builtInKotlin` opt-out handling apply as in build scripts. Three oracle cases generate a real buildSrc plugin and run it on AGP 9.4.1 (the `BaseExtension` lookup and the `kotlin-android` apply fail the build; a plugin that uses `com.android.build.api.dsl.ApplicationExtension` passes). Only a text scan: no type resolution, so a class that merely shares a name is not understood.
 
+## Docs watch (keeps the rule table honest)
+
+`.github/workflows/agp-watch.yml` runs every Monday (and on demand). `scripts/watch/watch_agp_docs.py` reads the Android Gradle plugin
+[roadmap](https://developer.android.com/build/releases/gradle-plugin-roadmap) and the release notes of every AGP 9.x (and 10.x, once it exists),
+and opens **one issue** (label `agp-watch`, deduplicated by a key in the title) when
+
+- a release-notes page appears that was not there before (a new minor, or AGP 10), or a page has a section that is not in `scripts/watch/known_sections.txt`;
+- a roadmap heading changes its title (the dates live there, for example "AGP 10.0 (late 2026)");
+- a rule cites an anchor that no longer exists in the page;
+- the 9.0.0 notes name an `android.*` Gradle property that no rule mentions and `scripts/watch/triaged.txt` does not explain.
+
+`known_sections.txt` is the list of headings that existed **when the watcher started**; it means "known", not "reviewed". Headings are a proxy, because the
+pages do not mark which items affect build files. The first live run (2026-10-03) found nothing new; the issue path was exercised with a manual run with `self_test` (it opens one real issue, which I closed).
+
 ## How it is verified
 
 `tests/oracle/run_oracle.py` generates a minimal Android app per construct, runs `gradle help --warning-mode all` with **AGP 9.4.1 on Gradle 9.8.0**, and
