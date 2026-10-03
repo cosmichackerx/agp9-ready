@@ -1,0 +1,6 @@
+[versions]
+agp = "9.4.1"
+ksp = "2.3.6"
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

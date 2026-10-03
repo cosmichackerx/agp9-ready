@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agp9-ready"
+version = "0.1.0"
+description = "Find what Android Gradle Plugin 9 (and 10) breaks in your Gradle files without running Gradle: kotlin-android and kapt plugins, legacy variant API, newDsl/builtInKotlin opt-outs, removed properties. Auto-fix, SARIF and GitHub Action."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Muhammad Arslan", email = "cosmichackerx@users.noreply.github.com" }]
+keywords = ["android", "agp", "agp-9", "agp-10", "android-gradle-plugin", "built-in-kotlin", "kapt", "ksp", "gradle", "migration", "lint", "linter", "sarif", "github-action", "deprecation"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Environment :: Console",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Build Tools",
+]
+
+[project.urls]
+Homepage = "https://github.com/cosmichackerx/agp9-ready"
+Issues = "https://github.com/cosmichackerx/agp9-ready/issues"
+
+[project.scripts]
+agp9-ready = "agp9_ready.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

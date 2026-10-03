@@ -1,0 +1,9 @@
+[versions]
+agp = "8.13.2"
+ksp = "2.2.10-2.0.2"
+detekt = "1.23.8"
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version = "2.2.10" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

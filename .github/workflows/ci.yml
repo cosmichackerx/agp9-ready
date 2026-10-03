@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.9", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install --upgrade pip pytest
+      - run: python -m pip install .
+      - run: python -m pytest -q
+      - name: Installed CLI runs
+        run: |
+          agp9-ready --version
+          agp9-ready --list-rules
+
+  oracle:
+    # Every construct in tests/oracle/run_oracle.py is built with a real Android Gradle Plugin; the build outcome must agree with what agp9-ready reports.
+    name: oracle (real AGP ${{ matrix.agp }}, Gradle 9.8.0)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        agp: ["9.4.1"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install Gradle 9.8.0 (checksum pinned)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/gradle.zip" "https://services.gradle.org/distributions/gradle-9.8.0-bin.zip"
+          echo "bafd5ce9cfaea0fbccfdc8439a1ac42fbd4cd9c89dc9a988228d8a2639a58e6c  $RUNNER_TEMP/gradle.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-9.8.0/bin" >> "$GITHUB_PATH"
+      - name: agp9-ready agrees with AGP ${{ matrix.agp }}
+        run: python tests/oracle/run_oracle.py --agp ${{ matrix.agp }}
+
+  action:
+    name: action (this checkout, fixtures)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Clean fixture passes
+        uses: ./
+        with:
+          path: tests/fixtures/clean-app
+          fail-on: warning
+          sarif-file: ${{ runner.temp }}/agp9.sarif
+      - name: Legacy fixture fails
+        id: bad
+        continue-on-error: true
+        uses: ./
+        with:
+          path: tests/fixtures/legacy-app
+      - name: It really failed
+        run: test "${{ steps.bad.outcome }}" = "failure"
+      - name: SARIF was written
+        run: python -c "import json,sys; d=json.load(open(sys.argv[1])); assert d['version']=='2.1.0'" "$RUNNER_TEMP/agp9.sarif"
+
+  package:
+    name: build wheel and sdist, install the wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: python -m pip install build
+      - run: python -m build
+      - run: |
+          python -m venv /tmp/v
+          /tmp/v/bin/pip install dist/*.whl
+          /tmp/v/bin/agp9-ready tests/fixtures/clean-app
+
+  dependabot-gaps:
+    name: dependabot-gaps (released action, consumer test)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: cosmichackerx/dependabot-gaps@v0.2.1
+        with:
+          fail-on: warning

@@ -1,0 +1,57 @@
+name: agp9-ready
+description: "Find what Android Gradle Plugin 9 and 10 break in your Gradle files without running Gradle: kotlin-android and kapt plugins, legacy variant API, newDsl / builtInKotlin opt-outs, removed properties."
+author: cosmichackerx
+branding:
+  icon: smartphone
+  color: green
+inputs:
+  path:
+    description: "Project directory (or one build file) to scan."
+    default: "."
+  agp-target:
+    description: "9: opt-out flags are warnings. 10: opt-outs and legacy APIs are errors (checks readiness for AGP 10)."
+    default: "9"
+  fail-on:
+    description: "Lowest severity that fails the step: error, warning or never."
+    default: error
+  disable:
+    description: "Space- or newline-separated rule ids to turn off."
+    default: ""
+  ignore:
+    description: "Space- or newline-separated path globs to leave out."
+    default: ""
+  summary:
+    description: "Append a Markdown report to the job summary (true or false)."
+    default: "true"
+  sarif-file:
+    description: "Also write a SARIF 2.1.0 report here (upload it with github/codeql-action/upload-sarif)."
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Run agp9-ready
+      shell: bash
+      env:
+        ACTION_DIR: ${{ github.action_path }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_TARGET: ${{ inputs.agp-target }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_DISABLE: ${{ inputs.disable }}
+        INPUT_IGNORE: ${{ inputs.ignore }}
+        INPUT_SUMMARY: ${{ inputs.summary }}
+        INPUT_SARIF: ${{ inputs.sarif-file }}
+      run: |
+        if command -v python3 > /dev/null 2>&1 && python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"; then py=python3; else py=python; fi
+        export PYTHONPATH="$ACTION_DIR/src"
+        common=("$INPUT_PATH" --agp-target "$INPUT_TARGET")
+        read -r -a rules <<< "$INPUT_DISABLE"
+        for r in "${rules[@]}"; do common+=(--disable "$r"); done
+        read -r -a globs <<< "$INPUT_IGNORE"
+        for g in "${globs[@]}"; do common+=(--ignore "$g"); done
+        if [ -n "$INPUT_SARIF" ]; then
+          "$py" -m agp9_ready "${common[@]}" --format sarif --output "$INPUT_SARIF" --fail-on never
+        fi
+        if [ "$INPUT_SUMMARY" = "true" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          "$py" -m agp9_ready "${common[@]}" --format markdown --fail-on never >> "$GITHUB_STEP_SUMMARY"
+        fi
+        "$py" -m agp9_ready "${common[@]}" --format github --fail-on "$INPUT_FAIL_ON"

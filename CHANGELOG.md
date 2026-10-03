@@ -1,0 +1,11 @@
+# Changelog
+
+## 0.1.0 - 2026-10-03
+
+First release.
+
+* 17 rules for Android Gradle Plugin 9 and the AGP 10 roadmap: `kotlin-android` and kapt plugins (built-in Kotlin), legacy variant API, legacy extension types, removed DSL members, density splits, embedded Wear OS apps, `setDimension`, `registerTransform`, `gradle.properties` flags (enforced, removed, opt-outs, pinned old defaults), Gradle wrapper older than 9.1.0, third-party plugin versions reported to need an opt-out, old KSP versions.
+* `--agp-target 10` turns the temporary opt-outs (`android.newDsl=false`, `android.builtInKotlin=false`) into errors.
+* `--fix` for the mechanical cases: remove the `kotlin-android` plugin line (only when `android.builtInKotlin=false` is not set), delete `android.enableLegacyVariantApi` and the no-effect properties, `setDimension("x")` to `dimension = "x"`.
+* Text, Markdown, JSON, GitHub annotation and SARIF 2.1.0 output; composite GitHub Action.
+* Checked against real AGP 9.4.1 in CI (`tests/oracle/run_oracle.py`).
